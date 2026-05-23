@@ -106,15 +106,16 @@ async def show_exercise(message: Message, context: ContextTypes.DEFAULT_TYPE) ->
     text   = exercise_caption(ex, set_idx, weight, ex_idx + 1, total)
     kb     = exercise_keyboard(has_weight=bool(ex["weight_unit"]))
 
-    if set_idx == 0:
-        # Новое упражнение — отправляем GIF
+    if set_idx == 0 and ex.get("photo"):
+        # Новое упражнение — отправляем фото с техникой
         try:
-            await message.reply_animation(
-                animation=ex["gif_url"],
-                caption=text,
-                reply_markup=kb,
-                parse_mode="Markdown",
-            )
+            with open(ex["photo"], "rb") as photo_file:
+                await message.reply_photo(
+                    photo=photo_file,
+                    caption=text,
+                    reply_markup=kb,
+                    parse_mode="Markdown",
+                )
         except Exception:
             await message.reply_text(text, reply_markup=kb, parse_mode="Markdown")
     else:

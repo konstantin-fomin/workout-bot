@@ -1,0 +1,14 @@
+# Секреты — только на сервере!
+.env
+
+# База данных
+data/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Docker volumes
+workout_data/
