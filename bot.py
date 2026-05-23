@@ -196,6 +196,53 @@ async def cb_day_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 #  ЛОГИКА ТРЕНИРОВКИ
 # ══════════════════════════════════════════════════════════════════════════════
 
+async def rest_timer_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Срабатывает после окончания отдыха — шлёт уведомление."""
+    job  = context.job
+    chat_id   = job.data["chat_id"]
+    mode      = job.data["mode"]       # "next_set" или "next_exercise"
+    rest_msg_id = job.data.get("rest_msg_id")
+    user_data = job.data["user_data"]
+
+    # Убираем кнопку у сообщения об отдыхе
+    if rest_msg_id:
+        try:
+            await context.bot.edit_message_reply_markup(
+                chat_id=chat_id, message_id=rest_msg_id, reply_markup=None
+            )
+        except Exception:
+            pass
+
+    if mode == "next_set":
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("▶️  Следующий подход", callback_data="continue_set")
+        ]])
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="⏰ *Время! Отдых закончен — следующий подход!* 💪",
+            reply_markup=kb,
+            parse_mode="Markdown",
+        )
+    else:
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("➡️  Следующее упражнение", callback_data="next_exercise")
+        ]])
+        next_name = user_data.get("next_exercise_name", "")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"⏰ *Время! Отдых закончен.*\n\nСледующее: *{next_name}* 💪",
+            reply_markup=kb,
+            parse_mode="Markdown",
+        )
+
+
+def cancel_rest_job(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
+    """Отменяет активный таймер отдыха если пользователь нажал кнопку сам."""
+    job_name = f"rest_{chat_id}"
+    for job in context.job_queue.get_jobs_by_name(job_name):
+        job.schedule_removal()
+
+
 async def cb_set_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer("✅ Подход записан!")
@@ -207,6 +254,10 @@ async def cb_set_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     exercises  = WORKOUTS[day_num]["exercises"]
     ex         = exercises[ex_idx]
     weight     = current_weight(context)
+    chat_id    = query.message.chat_id
+
+    # Отменяем предыдущий таймер если был
+    cancel_rest_job(context, chat_id)
 
     # Сохраняем подход в БД
     await db.log_set(
@@ -221,16 +272,30 @@ async def cb_set_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     sets_total = len(ex["sets"])
 
     if set_idx + 1 < sets_total:
-        # Есть следующий подход — показываем таймер отдыха
+        # Следующий подход — запускаем таймер отдыха
         context.user_data["set_idx"] = set_idx + 1
         rest = ex["rest_seconds"]
-        kb   = InlineKeyboardMarkup([[
-            InlineKeyboardButton("▶️  Готов — следующий подход", callback_data="continue_set")
+
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("▶️  Не ждать — следующий подход", callback_data="continue_set")
         ]])
-        await query.message.reply_text(
-            f"⏱ *Отдых {rest} сек*\n\nПодход {set_idx + 1}/{sets_total} выполнен 💪\nСледующий: {ex['sets'][set_idx + 1]['reps']} повт.",
+        rest_msg = await query.message.reply_text(
+            f"⏱ *Отдых {rest} сек...*\n\nПодход {set_idx + 1}/{sets_total} выполнен 💪\n"
+            f"Следующий: *{ex['sets'][set_idx + 1]['reps']}* повт.\n\n"
+            f"_Бот напомнит когда время выйдет_",
             reply_markup=kb,
             parse_mode="Markdown",
+        )
+        context.job_queue.run_once(
+            rest_timer_job,
+            when=rest,
+            name=f"rest_{chat_id}",
+            data={
+                "chat_id":      chat_id,
+                "mode":         "next_set",
+                "rest_msg_id":  rest_msg.message_id,
+                "user_data":    {},
+            },
         )
     else:
         # Упражнение завершено — переходим к следующему
@@ -241,15 +306,28 @@ async def cb_set_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         if next_idx < len(exercises):
             next_ex = exercises[next_idx]
             rest    = ex["rest_seconds"]
-            kb      = InlineKeyboardMarkup([[
-                InlineKeyboardButton("➡️  Следующее упражнение", callback_data="next_exercise")
+
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("➡️  Не ждать — следующее упражнение", callback_data="next_exercise")
             ]])
-            await query.message.reply_text(
+            rest_msg = await query.message.reply_text(
                 f"✅ *{ex['name']}* — выполнено!\n\n"
                 f"Следующее: *{next_ex['name']}*\n"
-                f"⏱ Отдохни {rest} сек",
+                f"⏱ Отдых *{rest} сек*...\n\n"
+                f"_Бот напомнит когда время выйдет_",
                 reply_markup=kb,
                 parse_mode="Markdown",
+            )
+            context.job_queue.run_once(
+                rest_timer_job,
+                when=rest,
+                name=f"rest_{chat_id}",
+                data={
+                    "chat_id":            chat_id,
+                    "mode":               "next_exercise",
+                    "rest_msg_id":        rest_msg.message_id,
+                    "user_data":          {"next_exercise_name": next_ex["name"]},
+                },
             )
         else:
             await finish_summary(query.message, context)
@@ -261,6 +339,7 @@ async def cb_set_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def cb_continue_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    cancel_rest_job(context, query.message.chat_id)
     await query.edit_message_reply_markup(None)
     await show_exercise(query.message, context)
     return EXERCISE_ACTIVE
@@ -269,6 +348,7 @@ async def cb_continue_set(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def cb_next_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    cancel_rest_job(context, query.message.chat_id)
     await query.edit_message_reply_markup(None)
     await show_exercise(query.message, context)
     return EXERCISE_ACTIVE
