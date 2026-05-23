@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  workout-bot:
+    build: .
+    container_name: workout-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/data/workout.db
+    volumes:
+      - workout_data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  workout_data:
+    name: workout_data

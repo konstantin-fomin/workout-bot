@@ -1,0 +1,205 @@
+"""
+Программа тренировок — упражнения, веса, GIF, советы.
+GIF-ссылки можно заменить на любые другие (Giphy, свои и т.д.)
+"""
+
+WORKOUTS = {
+    1: {
+        "name": "День 1 — Грудь / Плечи / Трицепс",
+        "emoji": "💪",
+        "exercises": [
+            {
+                "id": "bench_press",
+                "name": "Жим лёжа",
+                "default_weight": 65,
+                "weight_unit": "кг",
+                "sets": [{"reps": "8"}, {"reps": "8"}, {"reps": "6"}],
+                "rest_seconds": 120,
+                "gif_url": "https://media.giphy.com/media/l4FGrYKtP0pBGpBAA/giphy.gif",
+                "tip": "💡 Лопатки сведены и прижаты к скамье. Штанга опускается к нижней части груди. Не отрывай таз.",
+            },
+            {
+                "id": "dumbbell_fly",
+                "name": "Разведение гантелей лёжа",
+                "default_weight": 6,
+                "weight_unit": "кг",
+                "sets": [{"reps": "12"}, {"reps": "12"}, {"reps": "12"}],
+                "rest_seconds": 60,
+                "gif_url": "https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.gif",
+                "tip": "💡 Руки слегка согнуты в локтях, дуга неизменна. Чувствуй растяжение грудных в нижней точке.",
+            },
+            {
+                "id": "pushups",
+                "name": "Отжимания от пола",
+                "default_weight": None,
+                "weight_unit": None,
+                "sets": [{"reps": "30"}, {"reps": "20"}, {"reps": "15"}],
+                "rest_seconds": 60,
+                "gif_url": "https://media.giphy.com/media/23hPPMTOmrBO3NWqxS/giphy.gif",
+                "tip": "💡 Тело — прямая линия. Грудь касается пола, локти ~45° к корпусу.",
+            },
+            {
+                "id": "seated_db_press",
+                "name": "Жим гантелей сидя",
+                "default_weight": 15,
+                "weight_unit": "кг",
+                "sets": [{"reps": "10"}, {"reps": "10"}, {"reps": "10"}],
+                "rest_seconds": 90,
+                "gif_url": "https://media.giphy.com/media/l4FGrYKtP0pBGpBAA/giphy.gif",
+                "tip": "💡 Спина прямая, не прогибайся назад. В нижней точке локти чуть ниже плеч.",
+            },
+            {
+                "id": "lateral_raises",
+                "name": "Разведение гантелей в стороны",
+                "default_weight": 6,
+                "weight_unit": "кг",
+                "sets": [{"reps": "15"}, {"reps": "15"}, {"reps": "15"}],
+                "rest_seconds": 60,
+                "gif_url": "https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.gif",
+                "tip": "💡 Поднимай строго до уровня плеч. Мизинец чуть выше большого пальца. Без раскачки!",
+            },
+            {
+                "id": "french_press",
+                "name": "Французский жим",
+                "default_weight": 7,
+                "weight_unit": "кг",
+                "sets": [{"reps": "12"}, {"reps": "12"}, {"reps": "12"}],
+                "rest_seconds": 60,
+                "gif_url": "https://media.giphy.com/media/23hPPMTOmrBO3NWqxS/giphy.gif",
+                "tip": "💡 Локти не расходятся — это ключевое! Двигаются только предплечья.",
+            },
+        ],
+    },
+    2: {
+        "name": "День 2 — Спина / Бицепс",
+        "emoji": "🦍",
+        "exercises": [
+            {
+                "id": "pullups",
+                "name": "Подтягивания",
+                "default_weight": None,
+                "weight_unit": None,
+                "sets": [{"reps": "15"}, {"reps": "8"}, {"reps": "7"}, {"reps": "5"}],
+                "rest_seconds": 120,
+                "gif_url": "https://media.giphy.com/media/l4FGrYKtP0pBGpBAA/giphy.gif",
+                "tip": "💡 Полная амплитуда: вис до разгибания рук, подбородок над перекладиной. Без раскачки.",
+            },
+            {
+                "id": "pullover",
+                "name": "Пуловер с гантелей",
+                "default_weight": 15,
+                "weight_unit": "кг",
+                "sets": [{"reps": "12"}, {"reps": "12"}, {"reps": "12"}],
+                "rest_seconds": 90,
+                "gif_url": "https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.gif",
+                "tip": "💡 Растягивает широчайшие. Руки слегка согнуты. Не опускай гантель слишком низко.",
+            },
+            {
+                "id": "db_row",
+                "name": "Тяга гантели в наклоне",
+                "default_weight": 25,
+                "weight_unit": "кг",
+                "sets": [{"reps": "10"}, {"reps": "10"}, {"reps": "10"}],
+                "rest_seconds": 90,
+                "gif_url": "https://media.giphy.com/media/23hPPMTOmrBO3NWqxS/giphy.gif",
+                "tip": "💡 Спина параллельна полу. Тяни локоть назад и вверх. Не поворачивай корпус.",
+            },
+            {
+                "id": "barbell_curl",
+                "name": "Сгибание рук со штангой",
+                "default_weight": 30,
+                "weight_unit": "кг",
+                "sets": [{"reps": "10"}, {"reps": "10"}, {"reps": "10"}],
+                "rest_seconds": 90,
+                "gif_url": "https://media.giphy.com/media/l4FGrYKtP0pBGpBAA/giphy.gif",
+                "tip": "💡 Локти прижаты к корпусу. Не помогай спиной и ногами.",
+            },
+            {
+                "id": "hammer_curls",
+                "name": "Молотковые сгибания",
+                "default_weight": 6,
+                "weight_unit": "кг",
+                "sets": [{"reps": "12"}, {"reps": "12"}, {"reps": "12"}],
+                "rest_seconds": 60,
+                "gif_url": "https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.gif",
+                "tip": "💡 Нейтральный хват (большой палец вверх). Отлично бьёт по брахиалису.",
+            },
+            {
+                "id": "barbell_shrugs",
+                "name": "Шраги со штангой",
+                "default_weight": 80,
+                "weight_unit": "кг",
+                "sets": [{"reps": "15"}, {"reps": "15"}, {"reps": "15"}],
+                "rest_seconds": 90,
+                "gif_url": "https://media.giphy.com/media/23hPPMTOmrBO3NWqxS/giphy.gif",
+                "tip": "💡 Плечи строго вертикально вверх, не крути. Фиксация наверху 1 секунда.",
+            },
+        ],
+    },
+    3: {
+        "name": "День 3 — Ноги / Пресс",
+        "emoji": "🦵",
+        "exercises": [
+            {
+                "id": "squat",
+                "name": "Приседания со штангой",
+                "default_weight": 70,
+                "weight_unit": "кг",
+                "sets": [{"reps": "8"}, {"reps": "8"}, {"reps": "8"}],
+                "rest_seconds": 150,
+                "gif_url": "https://media.giphy.com/media/l4FGrYKtP0pBGpBAA/giphy.gif",
+                "tip": "💡 Спина нейтральная, грудь вперёд. Колени над носками. Ниже параллели — идеально.",
+            },
+            {
+                "id": "leg_extension",
+                "name": "Разгибание ног",
+                "default_weight": 30,
+                "weight_unit": "кг",
+                "sets": [{"reps": "12"}, {"reps": "12"}, {"reps": "12"}],
+                "rest_seconds": 90,
+                "gif_url": "https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.gif",
+                "tip": "💡 Фиксация в верхней точке 1-2 сек. Контролируй опускание — не бросай вес.",
+            },
+            {
+                "id": "plank",
+                "name": "Планка",
+                "default_weight": None,
+                "weight_unit": None,
+                "sets": [{"reps": "70 сек"}, {"reps": "50 сек"}, {"reps": "40 сек"}],
+                "rest_seconds": 60,
+                "gif_url": "https://media.giphy.com/media/23hPPMTOmrBO3NWqxS/giphy.gif",
+                "tip": "💡 Тело — прямая линия. Не поднимай и не опускай таз. Дыши равномерно.",
+            },
+            {
+                "id": "crunches",
+                "name": "Скручивания на пресс",
+                "default_weight": None,
+                "weight_unit": None,
+                "sets": [{"reps": "15"}, {"reps": "15"}, {"reps": "15"}],
+                "rest_seconds": 45,
+                "gif_url": "https://media.giphy.com/media/l4FGrYKtP0pBGpBAA/giphy.gif",
+                "tip": "💡 Поясница прижата к полу. Тяни грудью к коленям, не шеей. Медленно.",
+            },
+            {
+                "id": "leg_raises",
+                "name": "Подъём ног лёжа",
+                "default_weight": None,
+                "weight_unit": None,
+                "sets": [{"reps": "10"}, {"reps": "10"}, {"reps": "10"}],
+                "rest_seconds": 45,
+                "gif_url": "https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.gif",
+                "tip": "💡 Медленно опускай ноги, не касаясь пола. Поясница не отрывается!",
+            },
+        ],
+    },
+}
+
+
+def get_weighted_exercises():
+    """Все взвешиваемые упражнения — для меню прогресса."""
+    result = []
+    for day_num, day_data in WORKOUTS.items():
+        for ex in day_data["exercises"]:
+            if ex["weight_unit"]:
+                result.append({"id": ex["id"], "name": ex["name"], "day": day_num})
+    return result
