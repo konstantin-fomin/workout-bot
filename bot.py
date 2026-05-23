@@ -196,51 +196,87 @@ async def cb_day_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 #  ЛОГИКА ТРЕНИРОВКИ
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def rest_timer_job(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Срабатывает после окончания отдыха — шлёт уведомление."""
-    job  = context.job
-    chat_id   = job.data["chat_id"]
-    mode      = job.data["mode"]       # "next_set" или "next_exercise"
-    rest_msg_id = job.data.get("rest_msg_id")
-    user_data = job.data["user_data"]
+PROGRESS_INTERVAL = 15  # обновляем прогресс-бар каждые N секунд
 
-    # Убираем кнопку у сообщения об отдыхе
-    if rest_msg_id:
+
+def make_progress_bar(elapsed: int, total: int, width: int = 16) -> str:
+    filled = int(width * elapsed / total)
+    bar    = "█" * filled + "░" * (width - filled)
+    left   = max(0, total - elapsed)
+    return f"[{bar}] {left} сек"
+
+
+def rest_message_text(elapsed: int, total: int, subtitle: str) -> str:
+    bar = make_progress_bar(elapsed, total)
+    return (
+        f"😮\u200d💨 *Отдых {total} сек*\n\n"
+        f"`{bar}`\n\n"
+        f"{subtitle}"
+    )
+
+
+async def rest_progress_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    job       = context.job
+    chat_id   = job.data["chat_id"]
+    msg_id    = job.data["msg_id"]
+    total     = job.data["total"]
+    elapsed   = job.data["elapsed"] + PROGRESS_INTERVAL
+    mode      = job.data["mode"]
+    subtitle  = job.data["subtitle"]
+    user_data = job.data["user_data"]
+    job.data["elapsed"] = elapsed
+
+    if elapsed >= total:
+        if mode == "next_set":
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("▶️  Следующий подход", callback_data="continue_set")
+            ]])
+            final_text = f"⏰ *Время! Отдых закончен — следующий подход!* 💪\n\n{subtitle}"
+        else:
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("➡️  Следующее упражнение", callback_data="next_exercise")
+            ]])
+            next_name  = user_data.get("next_exercise_name", "")
+            final_text = f"⏰ *Время! Отдых закончен.*\n\nСледующее: *{next_name}* 💪"
         try:
-            await context.bot.edit_message_reply_markup(
-                chat_id=chat_id, message_id=rest_msg_id, reply_markup=None
+            await context.bot.edit_message_text(
+                chat_id=chat_id, message_id=msg_id,
+                text=final_text, reply_markup=kb, parse_mode="Markdown",
+            )
+        except Exception:
+            pass
+        job.schedule_removal()
+    else:
+        skip_cb = "continue_set" if mode == "next_set" else "next_exercise"
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("▶️  Не ждать", callback_data=skip_cb)
+        ]])
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id, message_id=msg_id,
+                text=rest_message_text(elapsed, total, subtitle),
+                reply_markup=kb, parse_mode="Markdown",
             )
         except Exception:
             pass
 
-    if mode == "next_set":
-        kb = InlineKeyboardMarkup([[
-            InlineKeyboardButton("▶️  Следующий подход", callback_data="continue_set")
-        ]])
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="⏰ *Время! Отдых закончен — следующий подход!* 💪",
-            reply_markup=kb,
-            parse_mode="Markdown",
-        )
-    else:
-        kb = InlineKeyboardMarkup([[
-            InlineKeyboardButton("➡️  Следующее упражнение", callback_data="next_exercise")
-        ]])
-        next_name = user_data.get("next_exercise_name", "")
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"⏰ *Время! Отдых закончен.*\n\nСледующее: *{next_name}* 💪",
-            reply_markup=kb,
-            parse_mode="Markdown",
-        )
-
 
 def cancel_rest_job(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
-    """Отменяет активный таймер отдыха если пользователь нажал кнопку сам."""
-    job_name = f"rest_{chat_id}"
-    for job in context.job_queue.get_jobs_by_name(job_name):
+    for job in context.job_queue.get_jobs_by_name(f"rest_{chat_id}"):
         job.schedule_removal()
+
+
+def start_rest_timer(context, chat_id, msg_id, total, mode, subtitle, user_data):
+    context.job_queue.run_repeating(
+        rest_progress_job,
+        interval=PROGRESS_INTERVAL,
+        first=PROGRESS_INTERVAL,
+        name=f"rest_{chat_id}",
+        data={
+            "chat_id": chat_id, "msg_id": msg_id, "total": total,
+            "elapsed": 0, "mode": mode, "subtitle": subtitle, "user_data": user_data,
+        },
+    )
 
 
 async def cb_set_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -279,24 +315,14 @@ async def cb_set_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         kb = InlineKeyboardMarkup([[
             InlineKeyboardButton("▶️  Не ждать — следующий подход", callback_data="continue_set")
         ]])
+        subtitle1 = f"Подход {set_idx + 1}/{sets_total} выполнен 💪\nСледующий: *{ex['sets'][set_idx + 1]['reps']}* повт."
         rest_msg = await query.message.reply_text(
-            f"⏱ *Отдых {rest} сек...*\n\nПодход {set_idx + 1}/{sets_total} выполнен 💪\n"
-            f"Следующий: *{ex['sets'][set_idx + 1]['reps']}* повт.\n\n"
-            f"_Бот напомнит когда время выйдет_",
+            rest_message_text(0, rest, subtitle1),
             reply_markup=kb,
             parse_mode="Markdown",
         )
-        context.job_queue.run_once(
-            rest_timer_job,
-            when=rest,
-            name=f"rest_{chat_id}",
-            data={
-                "chat_id":      chat_id,
-                "mode":         "next_set",
-                "rest_msg_id":  rest_msg.message_id,
-                "user_data":    {},
-            },
-        )
+        cancel_rest_job(context, chat_id)
+        start_rest_timer(context, chat_id, rest_msg.message_id, rest, "next_set", subtitle1, {})
     else:
         # Упражнение завершено — переходим к следующему
         context.user_data["exercise_idx"] = ex_idx + 1
@@ -310,25 +336,14 @@ async def cb_set_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             kb = InlineKeyboardMarkup([[
                 InlineKeyboardButton("➡️  Не ждать — следующее упражнение", callback_data="next_exercise")
             ]])
+            subtitle2 = f"✅ *{ex['name']}* выполнено!\nСледующее: *{next_ex['name']}*"
             rest_msg = await query.message.reply_text(
-                f"✅ *{ex['name']}* — выполнено!\n\n"
-                f"Следующее: *{next_ex['name']}*\n"
-                f"⏱ Отдых *{rest} сек*...\n\n"
-                f"_Бот напомнит когда время выйдет_",
+                rest_message_text(0, rest, subtitle2),
                 reply_markup=kb,
                 parse_mode="Markdown",
             )
-            context.job_queue.run_once(
-                rest_timer_job,
-                when=rest,
-                name=f"rest_{chat_id}",
-                data={
-                    "chat_id":            chat_id,
-                    "mode":               "next_exercise",
-                    "rest_msg_id":        rest_msg.message_id,
-                    "user_data":          {"next_exercise_name": next_ex["name"]},
-                },
-            )
+            cancel_rest_job(context, chat_id)
+            start_rest_timer(context, chat_id, rest_msg.message_id, rest, "next_exercise", subtitle2, {"next_exercise_name": next_ex["name"]})
         else:
             await finish_summary(query.message, context)
             return ConversationHandler.END
