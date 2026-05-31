@@ -1,0 +1,115 @@
+{
+  "info": {
+    "_postman_id": "d0d1f249-9c9d-45bb-815e-10c62ef276d0",
+    "name": "Workout Bot API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "54863661",
+    "_collection_link": "https://go.postman.co/collection/54863661-d0d1f249-9c9d-45bb-815e-10c62ef276d0?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Health check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"Health response is valid\", function () {\r",
+              "    const json = pm.response.json();\r",
+              "\r",
+              "    pm.expect(json.status).to.eql(\"ok\");\r",
+              "    pm.expect(json.service).to.eql(\"workout-bot-api\");\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get exercises",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"Response is a non-empty array\", function () {\r",
+              "    const json = pm.response.json();\r",
+              "\r",
+              "    pm.expect(json).to.be.an(\"array\");\r",
+              "    pm.expect(json.length).to.be.greaterThan(0);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"Each exercise has required fields\", function () {\r",
+              "    const json = pm.response.json();\r",
+              "\r",
+              "    json.forEach((item) => {\r",
+              "        pm.expect(item).to.have.property(\"day_number\");\r",
+              "        pm.expect(item).to.have.property(\"id\");\r",
+              "        pm.expect(item).to.have.property(\"name\");\r",
+              "        pm.expect(item).to.have.property(\"default_weight\");\r",
+              "        pm.expect(item).to.have.property(\"weight_unit\");\r",
+              "        pm.expect(item).to.have.property(\"sets\");\r",
+              "        pm.expect(item).to.have.property(\"rest_seconds\");\r",
+              "        pm.expect(item).to.have.property(\"tip\");\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "pm.test(\"Each exercise has valid basic types\", function () {\r",
+              "    const json = pm.response.json();\r",
+              "\r",
+              "    json.forEach((item) => {\r",
+              "        pm.expect(item.day_number).to.be.a(\"number\");\r",
+              "        pm.expect(item.id).to.be.a(\"string\");\r",
+              "        pm.expect(item.name).to.be.a(\"string\");\r",
+              "        pm.expect(item.sets).to.be.an(\"array\");\r",
+              "    });\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/exercises",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "exercises"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

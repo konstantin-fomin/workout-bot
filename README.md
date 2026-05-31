@@ -133,3 +133,23 @@ docker compose up -d --build
 ---
 
 *Сделано для личного использования. Легко адаптируется под любую программу тренировок.*
+
+---
+
+## Local test API
+
+This project also includes a small separate FastAPI app for local Swagger/OpenAPI
+and Postman practice. It does not start the Telegram bot, does not read the bot
+token, and does not touch the database.
+
+Run locally:
+
+```bash
+uvicorn api:app --reload
+```
+
+Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
