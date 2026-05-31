@@ -1,0 +1,59 @@
+name: Postman API Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  postman-api-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Start FastAPI server
+        run: |
+          python -m uvicorn api:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
+
+      - name: Wait for API readiness
+        run: |
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health > /dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            echo "Waiting for API... ($i/30)"
+            sleep 1
+          done
+
+          echo "API did not become ready. Uvicorn log:"
+          cat uvicorn.log
+          exit 1
+
+      - name: Run Newman collection
+        run: |
+          newman run postman/workout-bot-api.postman_collection.json -e postman/workout-bot-local.postman_environment.json
